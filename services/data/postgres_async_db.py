@@ -61,20 +61,18 @@ class AsyncPostgresDB(object):
             database_name, user, password, host, port
         )
         # todo make poolsize min and max configurable as well as timeout
-        # todo add retry and better error message
         retries = 3
         for i in range(retries):
-            while True:
-                try:
-                    self.pool = await aiopg.create_pool(dsn)
-                    for table in self.tables:
-                        await table._init()
-                except Exception as e:
-                    if retries - i < 1:
-                        raise e
-                    time.sleep(1)
-                    continue
+            try:
+                self.pool = await aiopg.create_pool(dsn)
+                for table in self.tables:
+                    await table._init()
                 break
+            except Exception as e:
+                print("Could not connect to database, attempt", i + 1, "out of", retries, "\n Cause:", e)
+                if i + 1 == retries:
+                    raise e
+                time.sleep(1)
 
     async def get_run_ids(self, flow_id: str, run_id: str):
         run = await self.run_table_postgres.get_run(flow_id, run_id,
